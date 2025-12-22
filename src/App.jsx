@@ -177,13 +177,23 @@ const App = () => {
   const handleCoverSave = async (bookId) => {
     if (!supabase) return
     try {
-      const coverUrl = editingCover[bookId] || ''
-      const { error } = await supabase
+      const coverUrl = (editingCover[bookId] || '').trim()
+      if (!coverUrl) {
+        alert('请输入封面URL')
+        return
+      }
+      
+      console.log('保存封面URL:', coverUrl, 'for book:', bookId)
+      
+      const { data, error } = await supabase
         .from('books')
         .update({ cover: coverUrl })
         .eq('id', bookId)
+        .select()
 
       if (error) throw error
+
+      console.log('封面更新成功:', data)
 
       setBooks(books.map(book => 
         book.id === bookId ? { ...book, cover: coverUrl } : book
@@ -191,6 +201,8 @@ const App = () => {
       const newEditingCover = { ...editingCover }
       delete newEditingCover[bookId]
       setEditingCover(newEditingCover)
+      
+      alert('封面已更新！')
     } catch (error) {
       console.error('Error updating cover:', error)
       alert('更新封面失败: ' + error.message)
@@ -393,17 +405,23 @@ const App = () => {
           >
             <div style={{ position: 'relative', marginBottom: '10px' }}>
               <img
-                src={book.cover || 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)}
+                src={book.cover && book.cover.trim() ? decodeURIComponent(book.cover) : 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)}
                 alt={book.title}
                 onError={(e) => {
-                  e.target.src = 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)
+                  if (e.target.src !== 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)) {
+                    e.target.src = 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)
+                  }
+                }}
+                onLoad={(e) => {
+                  console.log('图片加载成功:', e.target.src)
                 }}
                 style={{
                   width: '100%',
                   height: '200px',
                   objectFit: 'cover',
                   borderRadius: '4px',
-                  backgroundColor: '#f0f0f0'
+                  backgroundColor: '#f0f0f0',
+                  display: 'block'
                 }}
               />
               {editingCover[book.id] !== undefined ? (
