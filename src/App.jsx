@@ -94,6 +94,12 @@ const App = () => {
     }
   }
 
+  const handleStatusChange = (bookId, newStatus) => {
+    setBooks(books.map(book => 
+      book.id === bookId ? { ...book, status: newStatus } : book
+    ))
+  }
+
   const StarRating = ({ bookId, currentRating, onRating }) => {
     return (
       <div style={{ display: 'flex', gap: '4px', marginTop: '8px' }}>
@@ -296,19 +302,25 @@ const App = () => {
               </button>
             </div>
             <p style={{ color: '#666', fontSize: '14px', marginBottom: '10px' }}>{book.author}</p>
-            <div style={{
-              display: 'inline-block',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              marginBottom: '10px',
-              backgroundColor: 
-                book.status === 'Reading' ? '#fff3cd' :
-                book.status === 'Finished' ? '#d4edda' : '#e2e3e5'
-            }}>
-              {book.status === 'Reading' ? '在读' :
-               book.status === 'Finished' ? '已读' : '想读'}
-            </div>
+            <select
+              value={book.status}
+              onChange={(e) => handleStatusChange(book.id, e.target.value)}
+              style={{
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                marginBottom: '10px',
+                border: '1px solid #ddd',
+                backgroundColor: 
+                  book.status === 'Reading' ? '#fff3cd' :
+                  book.status === 'Finished' ? '#d4edda' : '#e2e3e5',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="Reading">在读</option>
+              <option value="Finished">已读</option>
+              <option value="Wishlist">想读</option>
+            </select>
             <StarRating
               bookId={book.id}
               currentRating={book.rating}
