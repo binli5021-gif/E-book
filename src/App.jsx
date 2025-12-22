@@ -432,7 +432,7 @@ const App = () => {
                     type="text"
                     value={editingCover[book.id]}
                     onChange={(e) => setEditingCover({ ...editingCover, [book.id]: e.target.value })}
-                    placeholder="输入封面URL"
+                    placeholder="输入封面URL（Wikipedia图片可能无法显示，建议使用其他图片源）"
                     style={{
                       width: '100%',
                       padding: '6px',
@@ -442,6 +442,9 @@ const App = () => {
                       marginBottom: '5px'
                     }}
                   />
+                  <p style={{ fontSize: '10px', color: '#666', marginBottom: '5px', marginTop: 0 }}>
+                    提示：Wikipedia图片可能因CORS限制无法显示，建议使用 Imgur、Cloudinary 或其他图片托管服务
+                  </p>
                   <div style={{ display: 'flex', gap: '5px' }}>
                     <button
                       onClick={() => handleCoverSave(book.id)}
