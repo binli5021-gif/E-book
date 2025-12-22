@@ -1,36 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { supabase } from './supabase'
 
 const App = () => {
-  const [books, setBooks] = useState([
-    {
-      id: 1,
-      title: 'JavaScript高级程序设计',
-      author: 'Matt Frisbie',
-      cover: 'https://via.placeholder.com/150x200?text=JS',
-      status: 'Finished',
-      rating: 5,
-      note: '非常全面的JavaScript参考书'
-    },
-    {
-      id: 2,
-      title: 'React技术揭秘',
-      author: '卡颂',
-      cover: 'https://via.placeholder.com/150x200?text=React',
-      status: 'Reading',
-      rating: 4,
-      note: '深入理解React原理'
-    },
-    {
-      id: 3,
-      title: '深入理解计算机系统',
-      author: 'Randal E. Bryant',
-      cover: 'https://via.placeholder.com/150x200?text=CSAPP',
-      status: 'Wishlist',
-      rating: 0,
-      note: ''
-    }
-  ])
-
+  const [books, setBooks] = useState([])
+  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('All')
   const [showAddForm, setShowAddForm] = useState(false)
   const [newBook, setNewBook] = useState({
@@ -43,61 +16,149 @@ const App = () => {
   })
   const [editingNote, setEditingNote] = useState({})
 
+  useEffect(() => {
+    loadBooks()
+  }, [])
+
+  const loadBooks = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('books')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setBooks(data || [])
+    } catch (error) {
+      console.error('Error loading books:', error)
+      alert('加载书籍失败: ' + error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const filteredBooks = filter === 'All' 
     ? books 
     : books.filter(book => book.status === filter)
 
-  const handleAddBook = () => {
+  const handleAddBook = async () => {
     if (!newBook.title || !newBook.author) {
       alert('请填写书名和作者')
       return
     }
-    const book = {
-      id: Date.now(),
-      ...newBook,
-      cover: newBook.cover || 'https://via.placeholder.com/150x200?text=Book'
+    try {
+      const bookData = {
+        title: newBook.title,
+        author: newBook.author,
+        cover: newBook.cover || 'https://via.placeholder.com/150x200?text=Book',
+        status: newBook.status,
+        rating: newBook.rating,
+        note: newBook.note || ''
+      }
+
+      const { data, error } = await supabase
+        .from('books')
+        .insert([bookData])
+        .select()
+
+      if (error) throw error
+
+      setBooks([data[0], ...books])
+      setNewBook({
+        title: '',
+        author: '',
+        cover: '',
+        status: 'Wishlist',
+        rating: 0,
+        note: ''
+      })
+      setShowAddForm(false)
+    } catch (error) {
+      console.error('Error adding book:', error)
+      alert('添加书籍失败: ' + error.message)
     }
-    setBooks([...books, book])
-    setNewBook({
-      title: '',
-      author: '',
-      cover: '',
-      status: 'Wishlist',
-      rating: 0,
-      note: ''
-    })
-    setShowAddForm(false)
   }
 
-  const handleRating = (bookId, rating) => {
-    setBooks(books.map(book => 
-      book.id === bookId ? { ...book, rating } : book
-    ))
+  const handleRating = async (bookId, rating) => {
+    try {
+      const { error } = await supabase
+        .from('books')
+        .update({ rating })
+        .eq('id', bookId)
+
+      if (error) throw error
+
+      setBooks(books.map(book => 
+        book.id === bookId ? { ...book, rating } : book
+      ))
+    } catch (error) {
+      console.error('Error updating rating:', error)
+      alert('更新评分失败: ' + error.message)
+    }
   }
 
   const handleNoteChange = (bookId, note) => {
     setEditingNote({ ...editingNote, [bookId]: note })
   }
 
-  const handleNoteSave = (bookId) => {
-    setBooks(books.map(book => 
-      book.id === bookId ? { ...book, note: editingNote[bookId] || book.note } : book
-    ))
-    const newEditingNote = { ...editingNote }
-    delete newEditingNote[bookId]
-    setEditingNote(newEditingNote)
-  }
+  const handleNoteSave = async (bookId) => {
+    try {
+      const note = editingNote[bookId] || ''
+      const { error } = await supabase
+        .from('books')
+        .update({ note })
+        .eq('id', bookId)
 
-  const handleDeleteBook = (bookId) => {
-    if (window.confirm('确定要删除这本书吗？')) {
-      setBooks(books.filter(book => book.id !== bookId))
+      if (error) throw error
+
+      setBooks(books.map(book => 
+        book.id === bookId ? { ...book, note } : book
+      ))
+      const newEditingNote = { ...editingNote }
+      delete newEditingNote[bookId]
+      setEditingNote(newEditingNote)
+    } catch (error) {
+      console.error('Error saving note:', error)
+      alert('保存笔记失败: ' + error.message)
     }
   }
 
-  const handleStatusChange = (bookId, newStatus) => {
-    setBooks(books.map(book => 
-      book.id === bookId ? { ...book, status: newStatus } : book
-    ))
+  const handleDeleteBook = async (bookId) => {
+    if (!window.confirm('确定要删除这本书吗？')) {
+      return
+    }
+    try {
+      const { error } = await supabase
+        .from('books')
+        .delete()
+        .eq('id', bookId)
+
+      if (error) throw error
+
+      setBooks(books.filter(book => book.id !== bookId))
+    } catch (error) {
+      console.error('Error deleting book:', error)
+      alert('删除书籍失败: ' + error.message)
+    }
+  }
+
+  const handleStatusChange = async (bookId, newStatus) => {
+    try {
+      const { error } = await supabase
+        .from('books')
+        .update({ status: newStatus })
+        .eq('id', bookId)
+
+      if (error) throw error
+
+      setBooks(books.map(book => 
+        book.id === bookId ? { ...book, status: newStatus } : book
+      ))
+    } catch (error) {
+      console.error('Error updating status:', error)
+      alert('更新状态失败: ' + error.message)
+    }
   }
 
   const StarRating = ({ bookId, currentRating, onRating }) => {
@@ -116,6 +177,14 @@ const App = () => {
             ★
           </span>
         ))}
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <p>加载中...</p>
       </div>
     )
   }
@@ -323,7 +392,7 @@ const App = () => {
             </select>
             <StarRating
               bookId={book.id}
-              currentRating={book.rating}
+              currentRating={book.rating || 0}
               onRating={handleRating}
             />
             <div style={{ marginTop: '10px' }}>
@@ -393,4 +462,3 @@ const App = () => {
 }
 
 export default App
-
