@@ -21,6 +21,10 @@ const App = () => {
   }, [])
 
   const loadBooks = async () => {
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
       const { data, error } = await supabase
@@ -43,6 +47,10 @@ const App = () => {
     : books.filter(book => book.status === filter)
 
   const handleAddBook = async () => {
+    if (!supabase) {
+      alert('Supabase 未配置，无法添加书籍')
+      return
+    }
     if (!newBook.title || !newBook.author) {
       alert('请填写书名和作者')
       return
@@ -81,6 +89,7 @@ const App = () => {
   }
 
   const handleRating = async (bookId, rating) => {
+    if (!supabase) return
     try {
       const { error } = await supabase
         .from('books')
@@ -103,6 +112,7 @@ const App = () => {
   }
 
   const handleNoteSave = async (bookId) => {
+    if (!supabase) return
     try {
       const note = editingNote[bookId] || ''
       const { error } = await supabase
@@ -125,6 +135,7 @@ const App = () => {
   }
 
   const handleDeleteBook = async (bookId) => {
+    if (!supabase) return
     if (!window.confirm('确定要删除这本书吗？')) {
       return
     }
@@ -144,6 +155,7 @@ const App = () => {
   }
 
   const handleStatusChange = async (bookId, newStatus) => {
+    if (!supabase) return
     try {
       const { error } = await supabase
         .from('books')
@@ -177,6 +189,21 @@ const App = () => {
             ★
           </span>
         ))}
+      </div>
+    )
+  }
+
+  if (!supabase) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px', maxWidth: '600px', margin: '0 auto' }}>
+        <h2 style={{ color: '#dc3545', marginBottom: '20px' }}>配置错误</h2>
+        <p style={{ marginBottom: '10px' }}>Supabase 配置缺失或未正确填写。</p>
+        <p style={{ marginBottom: '20px', color: '#666' }}>请在项目根目录的 <code style={{ backgroundColor: '#f5f5f5', padding: '2px 6px', borderRadius: '3px' }}>.env</code> 文件中填写：</p>
+        <div style={{ textAlign: 'left', backgroundColor: '#f5f5f5', padding: '15px', borderRadius: '5px', marginBottom: '20px' }}>
+          <code style={{ display: 'block', marginBottom: '5px' }}>VITE_SUPABASE_URL=你的_supabase_url</code>
+          <code style={{ display: 'block' }}>VITE_SUPABASE_ANON_KEY=你的_supabase_anon_key</code>
+        </div>
+        <p style={{ color: '#666', fontSize: '14px' }}>填写后请重启服务器（按 Ctrl+C 停止，然后运行 npm run dev）</p>
       </div>
     )
   }
