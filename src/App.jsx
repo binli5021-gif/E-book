@@ -15,6 +15,7 @@ const App = () => {
     note: ''
   })
   const [editingNote, setEditingNote] = useState({})
+  const [editingCover, setEditingCover] = useState({})
 
   useEffect(() => {
     loadBooks()
@@ -170,6 +171,29 @@ const App = () => {
     } catch (error) {
       console.error('Error updating status:', error)
       alert('更新状态失败: ' + error.message)
+    }
+  }
+
+  const handleCoverSave = async (bookId) => {
+    if (!supabase) return
+    try {
+      const coverUrl = editingCover[bookId] || ''
+      const { error } = await supabase
+        .from('books')
+        .update({ cover: coverUrl })
+        .eq('id', bookId)
+
+      if (error) throw error
+
+      setBooks(books.map(book => 
+        book.id === bookId ? { ...book, cover: coverUrl } : book
+      ))
+      const newEditingCover = { ...editingCover }
+      delete newEditingCover[bookId]
+      setEditingCover(newEditingCover)
+    } catch (error) {
+      console.error('Error updating cover:', error)
+      alert('更新封面失败: ' + error.message)
     }
   }
 
@@ -367,21 +391,93 @@ const App = () => {
               boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
             }}
           >
-            <img
-              src={book.cover || 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)}
-              alt={book.title}
-              onError={(e) => {
-                e.target.src = 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)
-              }}
-              style={{
-                width: '100%',
-                height: '200px',
-                objectFit: 'cover',
-                borderRadius: '4px',
-                marginBottom: '10px',
-                backgroundColor: '#f0f0f0'
-              }}
-            />
+            <div style={{ position: 'relative', marginBottom: '10px' }}>
+              <img
+                src={book.cover || 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)}
+                alt={book.title}
+                onError={(e) => {
+                  e.target.src = 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)
+                }}
+                style={{
+                  width: '100%',
+                  height: '200px',
+                  objectFit: 'cover',
+                  borderRadius: '4px',
+                  backgroundColor: '#f0f0f0'
+                }}
+              />
+              {editingCover[book.id] !== undefined ? (
+                <div style={{ marginTop: '8px' }}>
+                  <input
+                    type="text"
+                    value={editingCover[book.id]}
+                    onChange={(e) => setEditingCover({ ...editingCover, [book.id]: e.target.value })}
+                    placeholder="输入封面URL"
+                    style={{
+                      width: '100%',
+                      padding: '6px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      marginBottom: '5px'
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <button
+                      onClick={() => handleCoverSave(book.id)}
+                      style={{
+                        flex: 1,
+                        padding: '5px',
+                        backgroundColor: '#28a745',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      保存
+                    </button>
+                    <button
+                      onClick={() => {
+                        const newEditingCover = { ...editingCover }
+                        delete newEditingCover[book.id]
+                        setEditingCover(newEditingCover)
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '5px',
+                        backgroundColor: '#6c757d',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      取消
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditingCover({ ...editingCover, [book.id]: book.cover || '' })}
+                  style={{
+                    width: '100%',
+                    marginTop: '8px',
+                    padding: '5px',
+                    backgroundColor: '#6c757d',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  编辑封面
+                </button>
+              )}
+            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '5px' }}>
               <h3 style={{ fontSize: '16px', margin: 0, flex: 1 }}>{book.title}</h3>
               <button
