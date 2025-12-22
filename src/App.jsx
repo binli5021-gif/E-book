@@ -368,14 +368,18 @@ const App = () => {
             }}
           >
             <img
-              src={book.cover}
+              src={book.cover || 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)}
               alt={book.title}
+              onError={(e) => {
+                e.target.src = 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)
+              }}
               style={{
                 width: '100%',
                 height: '200px',
                 objectFit: 'cover',
                 borderRadius: '4px',
-                marginBottom: '10px'
+                marginBottom: '10px',
+                backgroundColor: '#f0f0f0'
               }}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '5px' }}>
