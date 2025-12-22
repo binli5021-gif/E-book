@@ -88,6 +88,12 @@ const App = () => {
     setEditingNote(newEditingNote)
   }
 
+  const handleDeleteBook = (bookId) => {
+    if (window.confirm('确定要删除这本书吗？')) {
+      setBooks(books.filter(book => book.id !== bookId))
+    }
+  }
+
   const StarRating = ({ bookId, currentRating, onRating }) => {
     return (
       <div style={{ display: 'flex', gap: '4px', marginTop: '8px' }}>
@@ -270,7 +276,25 @@ const App = () => {
                 marginBottom: '10px'
               }}
             />
-            <h3 style={{ marginBottom: '5px', fontSize: '16px' }}>{book.title}</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '5px' }}>
+              <h3 style={{ fontSize: '16px', margin: 0, flex: 1 }}>{book.title}</h3>
+              <button
+                onClick={() => handleDeleteBook(book.id)}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: '#dc3545',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  marginLeft: '8px'
+                }}
+                title="删除"
+              >
+                删除
+              </button>
+            </div>
             <p style={{ color: '#666', fontSize: '14px', marginBottom: '10px' }}>{book.author}</p>
             <div style={{
               display: 'inline-block',
