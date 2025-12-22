@@ -405,11 +405,13 @@ const App = () => {
           >
             <div style={{ position: 'relative', marginBottom: '10px' }}>
               <img
-                src={book.cover && book.cover.trim() ? decodeURIComponent(book.cover) : 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)}
+                src={book.cover && book.cover.trim() ? book.cover : 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)}
                 alt={book.title}
                 onError={(e) => {
-                  if (e.target.src !== 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)) {
-                    e.target.src = 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)
+                  const placeholderUrl = 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)
+                  if (e.target.src !== placeholderUrl && !e.target.src.includes('placeholder')) {
+                    console.log('图片加载失败，使用占位图:', e.target.src)
+                    e.target.src = placeholderUrl
                   }
                 }}
                 onLoad={(e) => {
