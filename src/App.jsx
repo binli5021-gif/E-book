@@ -209,6 +209,35 @@ const App = () => {
     }
   }
 
+  // 图片代理函数：解决 CORS 问题
+  const getImageUrl = (url) => {
+    if (!url || !url.trim()) return null
+    
+    const trimmedUrl = url.trim()
+    
+    // 如果已经是占位图或代理过的图片，直接返回
+    if (trimmedUrl.includes('placeholder') || trimmedUrl.includes('images.weserv.nl')) {
+      return trimmedUrl
+    }
+    
+    // 检测需要代理的图片源（Amazon、Wikipedia 等）
+    const needsProxy = 
+      trimmedUrl.includes('images-na.ssl-images-amazon.com') ||
+      trimmedUrl.includes('amazon.com') ||
+      trimmedUrl.includes('amazonaws.com') ||
+      trimmedUrl.includes('wikipedia.org') ||
+      trimmedUrl.includes('wikimedia.org')
+    
+    if (needsProxy) {
+      // 使用 images.weserv.nl 作为图片代理服务（免费，支持 CORS）
+      // 它会自动处理 CORS 问题并优化图片
+      return `https://images.weserv.nl/?url=${encodeURIComponent(trimmedUrl)}&output=webp&q=80`
+    }
+    
+    // 其他图片源直接返回
+    return trimmedUrl
+  }
+
   const StarRating = ({ bookId, currentRating, onRating }) => {
     return (
       <div style={{ display: 'flex', gap: '4px', marginTop: '8px' }}>
@@ -405,11 +434,15 @@ const App = () => {
           >
             <div style={{ position: 'relative', marginBottom: '10px' }}>
               <img
-                src={book.cover && book.cover.trim() ? book.cover : 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)}
+                src={getImageUrl(book.cover) || 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)}
                 alt={book.title}
                 onError={(e) => {
                   const placeholderUrl = 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)
-                  if (e.target.src !== placeholderUrl && !e.target.src.includes('placeholder')) {
+                  // 如果代理失败，尝试直接使用原 URL
+                  if (e.target.src.includes('images.weserv.nl') && book.cover && book.cover.trim()) {
+                    console.log('代理图片加载失败，尝试直接加载原图:', book.cover)
+                    e.target.src = book.cover
+                  } else if (e.target.src !== placeholderUrl && !e.target.src.includes('placeholder')) {
                     console.log('图片加载失败，使用占位图:', e.target.src)
                     e.target.src = placeholderUrl
                   }
@@ -443,7 +476,7 @@ const App = () => {
                     }}
                   />
                   <p style={{ fontSize: '10px', color: '#666', marginBottom: '5px', marginTop: 0 }}>
-                    提示：Wikipedia图片可能因CORS限制无法显示，建议使用 Imgur、Cloudinary 或其他图片托管服务
+                    提示：Amazon、Wikipedia 等图片会自动通过代理服务加载，无需担心 CORS 问题。也可以使用 Imgur、Cloudinary 等图片托管服务。
                   </p>
                   <div style={{ display: 'flex', gap: '5px' }}>
                     <button
