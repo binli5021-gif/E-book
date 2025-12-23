@@ -215,8 +215,15 @@ const App = () => {
     
     const trimmedUrl = url.trim()
     
-    // 如果已经是占位图或代理过的图片，直接返回
-    if (trimmedUrl.includes('placeholder') || trimmedUrl.includes('images.weserv.nl')) {
+    // 如果已经是占位图，直接返回
+    if (trimmedUrl.includes('placeholder')) {
+      return trimmedUrl
+    }
+    
+    // 如果已经是代理过的图片，直接返回
+    if (trimmedUrl.includes('images.weserv.nl') || 
+        trimmedUrl.includes('cors-anywhere') ||
+        trimmedUrl.includes('api.allorigins.win')) {
       return trimmedUrl
     }
     
@@ -229,9 +236,17 @@ const App = () => {
       trimmedUrl.includes('wikimedia.org')
     
     if (needsProxy) {
-      // 使用 images.weserv.nl 作为图片代理服务（免费，支持 CORS）
-      // 它会自动处理 CORS 问题并优化图片
-      return `https://images.weserv.nl/?url=${encodeURIComponent(trimmedUrl)}&output=webp&q=80`
+      // 使用 images.weserv.nl 作为图片代理服务
+      // 确保 URL 是完整的，包含协议
+      let finalUrl = trimmedUrl
+      if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+        finalUrl = 'https://' + finalUrl
+      }
+      
+      // 使用 images.weserv.nl，这是一个专门处理图片的代理服务
+      // 它会自动处理 CORS 问题
+      const encodedUrl = encodeURIComponent(finalUrl)
+      return `https://images.weserv.nl/?url=${encodedUrl}`
     }
     
     // 其他图片源直接返回
@@ -436,19 +451,51 @@ const App = () => {
               <img
                 src={getImageUrl(book.cover) || 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)}
                 alt={book.title}
+                crossOrigin="anonymous"
                 onError={(e) => {
                   const placeholderUrl = 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)
-                  // 如果代理失败，尝试直接使用原 URL
-                  if (e.target.src.includes('images.weserv.nl') && book.cover && book.cover.trim()) {
-                    console.log('代理图片加载失败，尝试直接加载原图:', book.cover)
-                    e.target.src = book.cover
+                  const originalUrl = book.cover && book.cover.trim() ? book.cover.trim() : null
+                  
+                  if (!originalUrl) {
+                    e.target.src = placeholderUrl
+                    return
+                  }
+                  
+                  // 如果 images.weserv.nl 代理失败，尝试不同的参数
+                  if (e.target.src.includes('images.weserv.nl')) {
+                    const retryCount = parseInt(e.target.dataset.retryCount || '0')
+                    
+                    if (retryCount === 0) {
+                      // 第一次重试：确保 URL 包含协议
+                      let retryUrl = originalUrl
+                      if (!retryUrl.startsWith('http://') && !retryUrl.startsWith('https://')) {
+                        retryUrl = 'https://' + retryUrl
+                      }
+                      console.log('images.weserv.nl 第一次重试，确保协议正确:', retryUrl)
+                      e.target.dataset.retryCount = '1'
+                      e.target.src = `https://images.weserv.nl/?url=${encodeURIComponent(retryUrl)}`
+                    } else if (retryCount === 1) {
+                      // 第二次重试：尝试使用不同的代理服务 - corsproxy.io
+                      console.log('images.weserv.nl 失败，尝试 corsproxy.io:', originalUrl)
+                      e.target.dataset.retryCount = '2'
+                      e.target.src = `https://corsproxy.io/?${encodeURIComponent(originalUrl)}`
+                    } else {
+                      // 所有代理都失败，使用占位图
+                      console.log('所有代理都失败，使用占位图。原始URL:', originalUrl)
+                      e.target.src = placeholderUrl
+                    }
                   } else if (e.target.src !== placeholderUrl && !e.target.src.includes('placeholder')) {
-                    console.log('图片加载失败，使用占位图:', e.target.src)
+                    // 其他错误，使用占位图
+                    console.log('图片加载失败，使用占位图。URL:', e.target.src)
                     e.target.src = placeholderUrl
                   }
                 }}
                 onLoad={(e) => {
                   console.log('图片加载成功:', e.target.src)
+                  // 清除重试计数
+                  if (e.target.dataset.retryCount) {
+                    delete e.target.dataset.retryCount
+                  }
                 }}
                 style={{
                   width: '100%',
