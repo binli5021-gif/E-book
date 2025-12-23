@@ -222,8 +222,9 @@ const App = () => {
     
     // 如果已经是代理过的图片，直接返回
     if (trimmedUrl.includes('images.weserv.nl') || 
-        trimmedUrl.includes('cors-anywhere') ||
-        trimmedUrl.includes('api.allorigins.win')) {
+        trimmedUrl.includes('corsproxy.io') ||
+        trimmedUrl.includes('api.allorigins.win') ||
+        trimmedUrl.includes('proxy.duckduckgo.com')) {
       return trimmedUrl
     }
     
@@ -236,17 +237,16 @@ const App = () => {
       trimmedUrl.includes('wikimedia.org')
     
     if (needsProxy) {
-      // 使用 images.weserv.nl 作为图片代理服务
       // 确保 URL 是完整的，包含协议
       let finalUrl = trimmedUrl
       if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
         finalUrl = 'https://' + finalUrl
       }
       
-      // 使用 images.weserv.nl，这是一个专门处理图片的代理服务
-      // 它会自动处理 CORS 问题
+      // 优先使用自己的 Vercel serverless function 代理（最可靠）
+      // 如果部署在 Vercel 上，使用相对路径会自动调用 serverless function
       const encodedUrl = encodeURIComponent(finalUrl)
-      return `https://images.weserv.nl/?url=${encodedUrl}`
+      return `/api/proxy-image?url=${encodedUrl}`
     }
     
     // 其他图片源直接返回
@@ -461,29 +461,39 @@ const App = () => {
                     return
                   }
                   
-                  // 如果 images.weserv.nl 代理失败，尝试不同的参数
-                  if (e.target.src.includes('images.weserv.nl')) {
+                  // 如果自己的代理失败，尝试其他代理服务
+                  if (e.target.src.includes('/api/proxy-image')) {
                     const retryCount = parseInt(e.target.dataset.retryCount || '0')
                     
                     if (retryCount === 0) {
-                      // 第一次重试：确保 URL 包含协议
+                      // 第一次重试：尝试使用 DuckDuckGo 代理
                       let retryUrl = originalUrl
                       if (!retryUrl.startsWith('http://') && !retryUrl.startsWith('https://')) {
                         retryUrl = 'https://' + retryUrl
                       }
-                      console.log('images.weserv.nl 第一次重试，确保协议正确:', retryUrl)
+                      console.log('Vercel 代理失败，尝试 DuckDuckGo 代理:', retryUrl)
                       e.target.dataset.retryCount = '1'
-                      e.target.src = `https://images.weserv.nl/?url=${encodeURIComponent(retryUrl)}`
+                      e.target.src = `https://proxy.duckduckgo.com/iu/?u=${encodeURIComponent(retryUrl)}`
                     } else if (retryCount === 1) {
-                      // 第二次重试：尝试使用不同的代理服务 - corsproxy.io
-                      console.log('images.weserv.nl 失败，尝试 corsproxy.io:', originalUrl)
+                      // 第二次重试：尝试使用 images.weserv.nl
+                      console.log('DuckDuckGo 失败，尝试 images.weserv.nl:', originalUrl)
                       e.target.dataset.retryCount = '2'
-                      e.target.src = `https://corsproxy.io/?${encodeURIComponent(originalUrl)}`
+                      let retryUrl = originalUrl
+                      if (!retryUrl.startsWith('http://') && !retryUrl.startsWith('https://')) {
+                        retryUrl = 'https://' + retryUrl
+                      }
+                      e.target.src = `https://images.weserv.nl/?url=${encodeURIComponent(retryUrl)}`
                     } else {
                       // 所有代理都失败，使用占位图
                       console.log('所有代理都失败，使用占位图。原始URL:', originalUrl)
                       e.target.src = placeholderUrl
                     }
+                  } else if (e.target.src.includes('proxy.duckduckgo.com') || 
+                             e.target.src.includes('images.weserv.nl') || 
+                             e.target.src.includes('corsproxy.io')) {
+                    // 如果其他代理也失败，使用占位图
+                    console.log('代理服务失败，使用占位图。URL:', e.target.src)
+                    e.target.src = placeholderUrl
                   } else if (e.target.src !== placeholderUrl && !e.target.src.includes('placeholder')) {
                     // 其他错误，使用占位图
                     console.log('图片加载失败，使用占位图。URL:', e.target.src)
