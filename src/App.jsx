@@ -60,7 +60,7 @@ const App = () => {
       const bookData = {
         title: newBook.title,
         author: newBook.author,
-        cover: newBook.cover || 'https://via.placeholder.com/150x200?text=Book',
+        cover: newBook.cover || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuaXoOWbvueJhzwvdGV4dD48L3N2Zz4=',
         status: newBook.status,
         rating: newBook.rating,
         note: newBook.note || ''
@@ -224,7 +224,8 @@ const App = () => {
     if (trimmedUrl.includes('images.weserv.nl') || 
         trimmedUrl.includes('corsproxy.io') ||
         trimmedUrl.includes('api.allorigins.win') ||
-        trimmedUrl.includes('proxy.duckduckgo.com')) {
+        trimmedUrl.includes('proxy.duckduckgo.com') ||
+        trimmedUrl.includes('/api/proxy-image')) {
       return trimmedUrl
     }
     
@@ -243,10 +244,24 @@ const App = () => {
         finalUrl = 'https://' + finalUrl
       }
       
-      // 优先使用自己的 Vercel serverless function 代理（最可靠）
-      // 如果部署在 Vercel 上，使用相对路径会自动调用 serverless function
-      const encodedUrl = encodeURIComponent(finalUrl)
-      return `/api/proxy-image?url=${encodedUrl}`
+      // 统一使用自己的代理服务
+      // 在 Vercel 上会使用 serverless function，本地开发时先尝试直接加载
+      const isVercel = window.location.hostname.includes('vercel.app')
+      
+      if (isVercel) {
+        // Vercel 生产环境：使用 serverless function
+        const encodedUrl = encodeURIComponent(finalUrl)
+        console.log('✅ 使用 Vercel serverless function 代理')
+        console.log('原始URL:', finalUrl)
+        return `/api/proxy-image?url=${encodedUrl}`
+      } else {
+        // 本地开发：先尝试直接加载，如果失败会显示占位图
+        // 本地测试时，建议使用 Imgur 等图片托管服务，或者直接部署到 Vercel 测试
+        console.log('💡 本地环境 - 建议使用 Imgur 等图片托管服务，或部署到 Vercel 测试')
+        console.log('原始URL:', finalUrl)
+        // 先尝试直接加载，虽然可能因为 CORS 失败，但至少可以测试
+        return finalUrl
+      }
     }
     
     // 其他图片源直接返回
@@ -449,59 +464,66 @@ const App = () => {
           >
             <div style={{ position: 'relative', marginBottom: '10px' }}>
               <img
-                src={getImageUrl(book.cover) || 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)}
+                src={getImageUrl(book.cover) || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuaXoOWbvueJhzwvdGV4dD48L3N2Zz4='}
                 alt={book.title}
                 crossOrigin="anonymous"
+                onLoadStart={(e) => {
+                  console.log('开始加载图片:', e.target.src)
+                  console.log('原始封面URL:', book.cover)
+                }}
                 onError={(e) => {
-                  const placeholderUrl = 'https://via.placeholder.com/150x200?text=' + encodeURIComponent(book.title)
+                  const placeholderUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuaXoOWbvueJhzwvdGV4dD48L3N2Zz4='
                   const originalUrl = book.cover && book.cover.trim() ? book.cover.trim() : null
+                  
+                  // 如果已经是占位图失败，不再重试，避免无限循环
+                  if (e.target.src.includes('placeholder') || e.target.src.includes('data:image')) {
+                    console.warn('占位图也加载失败，停止重试')
+                    return
+                  }
                   
                   if (!originalUrl) {
                     e.target.src = placeholderUrl
                     return
                   }
                   
-                  // 如果自己的代理失败，尝试其他代理服务
-                  if (e.target.src.includes('/api/proxy-image')) {
-                    const retryCount = parseInt(e.target.dataset.retryCount || '0')
-                    
-                    if (retryCount === 0) {
-                      // 第一次重试：尝试使用 DuckDuckGo 代理
-                      let retryUrl = originalUrl
-                      if (!retryUrl.startsWith('http://') && !retryUrl.startsWith('https://')) {
-                        retryUrl = 'https://' + retryUrl
-                      }
-                      console.log('Vercel 代理失败，尝试 DuckDuckGo 代理:', retryUrl)
-                      e.target.dataset.retryCount = '1'
-                      e.target.src = `https://proxy.duckduckgo.com/iu/?u=${encodeURIComponent(retryUrl)}`
-                    } else if (retryCount === 1) {
-                      // 第二次重试：尝试使用 images.weserv.nl
-                      console.log('DuckDuckGo 失败，尝试 images.weserv.nl:', originalUrl)
-                      e.target.dataset.retryCount = '2'
-                      let retryUrl = originalUrl
-                      if (!retryUrl.startsWith('http://') && !retryUrl.startsWith('https://')) {
-                        retryUrl = 'https://' + retryUrl
-                      }
-                      e.target.src = `https://images.weserv.nl/?url=${encodeURIComponent(retryUrl)}`
-                    } else {
-                      // 所有代理都失败，使用占位图
-                      console.log('所有代理都失败，使用占位图。原始URL:', originalUrl)
-                      e.target.src = placeholderUrl
-                    }
-                  } else if (e.target.src.includes('proxy.duckduckgo.com') || 
-                             e.target.src.includes('images.weserv.nl') || 
-                             e.target.src.includes('corsproxy.io')) {
-                    // 如果其他代理也失败，使用占位图
-                    console.log('代理服务失败，使用占位图。URL:', e.target.src)
+                  const retryCount = parseInt(e.target.dataset.retryCount || '0')
+                  
+                  // 如果重试次数超过3次，使用本地占位图（base64）
+                  if (retryCount >= 3) {
+                    console.error('所有代理都失败，使用本地占位图。原始URL:', originalUrl)
+                    e.target.dataset.retryCount = '999' // 标记为已使用占位图
                     e.target.src = placeholderUrl
-                  } else if (e.target.src !== placeholderUrl && !e.target.src.includes('placeholder')) {
-                    // 其他错误，使用占位图
-                    console.log('图片加载失败，使用占位图。URL:', e.target.src)
-                    e.target.src = placeholderUrl
+                    return
+                  }
+                  
+                  let retryUrl = originalUrl
+                  if (!retryUrl.startsWith('http://') && !retryUrl.startsWith('https://')) {
+                    retryUrl = 'https://' + retryUrl
+                  }
+                  
+                  console.log(`❌ 图片加载失败 (尝试 ${retryCount + 1}/3):`, e.target.src)
+                  
+                  // 多重重试机制 - 尝试不同的代理服务
+                  if (retryCount === 0) {
+                    // 第一次重试：尝试使用 allorigins.win 代理
+                    console.log('🔄 尝试 allorigins.win 代理:', retryUrl)
+                    e.target.dataset.retryCount = '1'
+                    e.target.src = `https://api.allorigins.win/raw?url=${encodeURIComponent(retryUrl)}`
+                  } else if (retryCount === 1) {
+                    // 第二次重试：尝试使用 DuckDuckGo 代理
+                    console.log('🔄 尝试 DuckDuckGo 代理:', retryUrl)
+                    e.target.dataset.retryCount = '2'
+                    e.target.src = `https://proxy.duckduckgo.com/iu/?u=${encodeURIComponent(retryUrl)}`
+                  } else if (retryCount === 2) {
+                    // 第三次重试：尝试使用 images.weserv.nl
+                    console.log('🔄 尝试 images.weserv.nl:', retryUrl)
+                    e.target.dataset.retryCount = '3'
+                    e.target.src = `https://images.weserv.nl/?url=${encodeURIComponent(retryUrl)}`
                   }
                 }}
                 onLoad={(e) => {
-                  console.log('图片加载成功:', e.target.src)
+                  console.log('✅ 图片加载成功:', e.target.src)
+                  console.log('原始封面URL:', book.cover)
                   // 清除重试计数
                   if (e.target.dataset.retryCount) {
                     delete e.target.dataset.retryCount

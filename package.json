@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
+    "dev:proxy": "node server.js",
     "start": "vite",
     "build": "vite build"
   },
@@ -14,6 +15,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
+    "express": "^5.2.1",
     "vite": "^5.0.0"
   }
 }
